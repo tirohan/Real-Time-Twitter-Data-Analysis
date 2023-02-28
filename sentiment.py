@@ -1,5 +1,17 @@
-#print("\nLoading the app....")
-#print("Please wait....\n")
+import os
+import json
+import pickle
+import numpy as np
+import tensorflow as tf
+import pandas as pd
+import model
+from tensorflow import keras
+import urllib.request as request
+from tensorflow.keras.models import model_from_json
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import tokenizer_from_json
+from tensorflow.keras.preprocessing import sequence
+from flask import Flask, request, jsonify
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -28,14 +40,6 @@ if not path.exists('./model/model.json'):
 if not path.exists('./model/tokenizer.pickle'):
     download_url(saved_model[2],'./model/tokenizer.pickle')
 
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras.models import model_from_json
-from tensorflow.keras.preprocessing.text import tokenizer_from_json
-from tensorflow.keras.preprocessing import sequence
-import numpy as np
-import pickle
-
 with open('./model/tokenizer.pickle', 'rb') as handle:
     tokenizer = pickle.load(handle)
 
@@ -48,7 +52,16 @@ model = model_from_json(loaded_model_json)
 # load weights into new model
 model.load_weights("./model/model.h5")
 
-def predict_response(response):
+
+# Set up the Flask app
+app = Flask(__name__)
+
+# Define the endpoint for sentiment prediction
+
+
+def predict_sentiment(response):
+    # Get the text data from the request
+    
     response = tokenizer.texts_to_sequences(response)
     response = sequence.pad_sequences(response, maxlen=48)
     probs = np.around(model.predict(response),decimals=2)
@@ -78,14 +91,14 @@ def predict_response(response):
     return tag, tag_prob, sent_prob
 
 
-## Below part for unit test
+@app.route('/predict', methods=['POST'])
+def update_output():
+    input_value = request.data.decode('utf-8')
+    tag, tag_prob, sent_prob = predict_sentiment(response= [input_value])
+    return f"Tag: {tag}", f"Tag confidence: {tag_prob*100:.1f}%", f"Sentiment Confidence: {sent_prob*100:.1f}%"
 
-#while True:             
-#    user_input = input("Please enter your text below:\n")
-#    if user_input == "":       
-#        print("Thank you.")
-#        break
-#    sent, conf, tag = predict_response(response=[user_input])
-#    print(f'Predicted tag : {tag}')
-#    print(f'Tag probability :{conf*100:.1f}%')
-#    print(f'Sentiment Confidence:{sent*100:.1f}%')    
+
+
+# Start the Flask app
+if __name__ == '__main__':
+    app.run(debug=True)
